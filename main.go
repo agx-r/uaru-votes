@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"gitlab.com/monadix-go-utils/myutils"
 	tb "gopkg.in/telebot.v4"
 )
 
@@ -25,14 +24,12 @@ func parseLogLevel(level string) (slog.Level, error) {
 	case "error":
 		return slog.LevelError, nil
 	default:
-		level, err := strconv.Atoi(level)
+		levelInt, err := strconv.Atoi(level)
 		if err != nil {
-			return myutils.Zero[slog.Level](), fmt.Errorf(
-				`provided level string is not one of debug/info/warn/error neither a valid int`,
-			)
+			var zeroLevel slog.Level
+			return zeroLevel, fmt.Errorf(`provided level string is not one of debug/info/warn/error neither a valid int`)
 		}
-
-		return slog.Level(level), nil
+		return slog.Level(levelInt), nil
 	}
 }
 
@@ -99,11 +96,7 @@ func main() {
 	}
 
 	bot.Handle("/start", func(ctx tb.Context) error {
-		if err := ctx.Reply("Приве"); err != nil {
-			return err
-		}
-
-		return nil
+		return ctx.Reply("Приве")
 	})
 
 	bot.Handle("/voteban", func(ctx tb.Context) error {
@@ -112,9 +105,7 @@ func main() {
 		}
 
 		if ctx.Message().ReplyTo == nil {
-			if err := ctx.Reply("Ответь на сообщение кого забанить"); err != nil {
-				return err
-			}
+			return ctx.Reply("Ответь на сообщение кого забанить")
 		}
 
 		userToBan := ctx.Message().ReplyTo.Sender
@@ -142,15 +133,11 @@ func main() {
 		}
 
 		msg, err := bot.Send(ctx.Chat(), &tb.Poll{
-			Question:  "Забанить?",
+			Question:  "Забанить или разбанить?",
 			Anonymous: false,
 			Options: []tb.PollOption{
-				{
-					Text: "Да",
-				},
-				{
-					Text: "Нет",
-				},
+				{Text: "Мут"},
+				{Text: "Размут"},
 			},
 		})
 		if err != nil {
@@ -167,20 +154,38 @@ func main() {
 			}
 
 			if poll.Options[0].VoterCount > poll.Options[1].VoterCount {
-				if _, err := bot.Reply(msg, "Ban nyuuu"); err != nil {
+				if _, err := bot.Reply(msg, "Мут nyuuu"); err != nil {
 					log.Error("failed to reply to poll", errorAttr(err))
 				}
 
 				member.RestrictedUntil = tb.Forever()
-				if err := bot.Ban(ctx.Chat(), member, false); err != nil {
-					log.Error("cannot ban user", errorAttr(err))
-					if _, err := bot.Reply(msg, "Чота не могу забанить"); err != nil {
+				member.CanSendMessages = false
+				member.CanSendMedia = false
+				member.CanSendPolls = false
+				member.CanSendOther = false
+				member.CanAddPreviews = false
+				if err := bot.Restrict(ctx.Chat(), member); err != nil {
+					log.Error("cannot mute user", errorAttr(err))
+					if _, err := bot.Reply(msg, "Чота не могу замутить"); err != nil {
 						log.Error("can't even cry", errorAttr(err))
 					}
 				}
 			} else {
-				if _, err := bot.Reply(msg, "Прощён."); err != nil {
+				if _, err := bot.Reply(msg, "Размучен."); err != nil {
 					log.Error("failed to reply to poll", errorAttr(err))
+				}
+
+				member.RestrictedUntil = 0
+				member.CanSendMessages = true
+				member.CanSendMedia = true
+				member.CanSendPolls = true
+				member.CanSendOther = true
+				member.CanAddPreviews = true
+				if err := bot.Restrict(ctx.Chat(), member); err != nil {
+					log.Error("cannot unmute user", errorAttr(err))
+					if _, err := bot.Reply(msg, "Чота не могу размутить"); err != nil {
+						log.Error("can't even cry", errorAttr(err))
+					}
 				}
 			}
 		}()
