@@ -1,6 +1,8 @@
+// Simple bot to ban group members based on poll results
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -11,6 +13,8 @@ import (
 	"github.com/joho/godotenv"
 	tb "gopkg.in/telebot.v4"
 )
+
+var errInvalidLogLevel = errors.New("provided level string is not one of debug/info/warn/error neither a valid int")
 
 func parseLogLevel(level string) (slog.Level, error) {
 	level = strings.ToLower(strings.TrimSpace(level))
@@ -27,8 +31,10 @@ func parseLogLevel(level string) (slog.Level, error) {
 		levelInt, err := strconv.Atoi(level)
 		if err != nil {
 			var zeroLevel slog.Level
-			return zeroLevel, fmt.Errorf(`provided level string is not one of debug/info/warn/error neither a valid int`)
+
+			return zeroLevel, errInvalidLogLevel
 		}
+
 		return slog.Level(levelInt), nil
 	}
 }
@@ -37,18 +43,14 @@ func errorAttr(err error) slog.Attr {
 	return slog.String("err", err.Error())
 }
 
-type ErrorHandler struct {
+type errorHandler struct {
 	logger *slog.Logger
 }
 
-func (h *ErrorHandler) handleError(err error, ctx tb.Context) {
+func (h *errorHandler) handleError(err error, _ tb.Context) {
 	if err != nil {
 		h.logger.Error("error from bot", errorAttr(err))
 	}
-}
-
-type Model struct {
-	logger *slog.Logger
 }
 
 func main() {
@@ -59,10 +61,11 @@ func main() {
 	levelEnv, isSet := os.LookupEnv("VOTEBAN_LOG_LEVEL")
 
 	level := slog.LevelInfo
+
 	if isSet {
 		levelParsed, err := parseLogLevel(levelEnv)
 		if err != nil {
-			fmt.Println("log level environment variable provided, but cannot parse it:", err)
+			fmt.Fprintf(os.Stderr, "log level environment variable provided, but cannot parse it: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -75,7 +78,7 @@ func main() {
 		Level: &levelVar,
 	}))
 
-	errorHandler := ErrorHandler{
+	eHandler := errorHandler{
 		logger: log,
 	}
 
@@ -87,7 +90,7 @@ func main() {
 
 	bot, err := tb.NewBot(tb.Settings{
 		Token:   token,
-		OnError: errorHandler.handleError,
+		OnError: eHandler.handleError,
 	})
 
 	if err != nil {
@@ -110,24 +113,28 @@ func main() {
 
 		userToBan := ctx.Message().ReplyTo.Sender
 		member, err := bot.ChatMemberOf(ctx.Chat(), userToBan)
+
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get member: %w", err)
 		}
 
 		admins, err := bot.AdminsOf(ctx.Chat())
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get admins: %w", err)
 		}
 
 		amIAdmin := false
+
 		for _, admin := range admins {
 			if userToBan.ID == admin.User.ID {
 				return ctx.Reply("ммм не")
 			}
+
 			if admin.CanRestrictMembers && admin.User.ID == bot.Me.ID {
 				amIAdmin = true
 			}
 		}
+
 		if !amIAdmin {
 			return ctx.Reply("Админом меня сделай, олух")
 		}
@@ -141,7 +148,7 @@ func main() {
 			},
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to send poll: %w", err)
 		}
 
 		go func() {
@@ -150,6 +157,7 @@ func main() {
 			poll, err := bot.StopPoll(msg)
 			if err != nil {
 				log.Error("failed to stop the poll", errorAttr(err))
+
 				return
 			}
 
@@ -164,8 +172,10 @@ func main() {
 				member.CanSendPolls = false
 				member.CanSendOther = false
 				member.CanAddPreviews = false
+
 				if err := bot.Restrict(ctx.Chat(), member); err != nil {
 					log.Error("cannot mute user", errorAttr(err))
+
 					if _, err := bot.Reply(msg, "Чота не могу замутить"); err != nil {
 						log.Error("can't even cry", errorAttr(err))
 					}
@@ -181,8 +191,10 @@ func main() {
 				member.CanSendPolls = true
 				member.CanSendOther = true
 				member.CanAddPreviews = true
+
 				if err := bot.Restrict(ctx.Chat(), member); err != nil {
 					log.Error("cannot unmute user", errorAttr(err))
+
 					if _, err := bot.Reply(msg, "Чота не могу размутить"); err != nil {
 						log.Error("can't even cry", errorAttr(err))
 					}
