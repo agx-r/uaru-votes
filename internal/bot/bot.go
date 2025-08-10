@@ -39,7 +39,7 @@ func (b *Bot) handleAllMessages(tbCtx tb.Context) error {
 
 	if msg.Sender.ID == 7952262321 {
 		r := rand.New(rand.NewSource(time.Now().UnixNano()))
-		if r.Float64() < 0.8 {
+		if r.Float64() < 0.6 {
 			if err := b.bot.Delete(msg); err != nil {
 				b.logger.Error("failed to delete message",
 					slog.Int64("user_id", msg.Sender.ID),
