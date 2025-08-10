@@ -2,6 +2,8 @@ package bot
 
 import (
 	"log/slog"
+	"math/rand"
+	"time"
 
 	"github.com/uaru-shit/votes/internal/bot/handlers"
 	"github.com/uaru-shit/votes/internal/domain"
@@ -21,7 +23,37 @@ func New(logger *slog.Logger, bot *tb.Bot) *Bot {
 
 	b.handle("/voteban", handlers.HandleVoteban)
 
+	b.bot.Handle(tb.OnText, b.handleAllMessages)
+	b.bot.Handle(tb.OnPhoto, b.handleAllMessages)
+	b.bot.Handle(tb.OnVideo, b.handleAllMessages)
+	b.bot.Handle(tb.OnDocument, b.handleAllMessages)
+	b.bot.Handle(tb.OnAudio, b.handleAllMessages)
+	b.bot.Handle(tb.OnVoice, b.handleAllMessages)
+	b.bot.Handle(tb.OnSticker, b.handleAllMessages)
+
 	return b
+}
+
+func (b *Bot) handleAllMessages(tbCtx tb.Context) error {
+	msg := tbCtx.Message()
+
+	if msg.Sender.ID == 7952262321 {
+		rand.Seed(time.Now().UnixNano())
+		if rand.Float64() < 0.8 {
+			if err := b.bot.Delete(msg); err != nil {
+				b.logger.Error("failed to delete message",
+					slog.Int64("user_id", msg.Sender.ID),
+					slog.Int64("message_id", int64(msg.ID)),
+					slog.String("error", err.Error()))
+			} else {
+				b.logger.Info("message deleted",
+					slog.Int64("user_id", msg.Sender.ID),
+					slog.Int64("message_id", int64(msg.ID)))
+			}
+		}
+	}
+
+	return nil
 }
 
 func (b *Bot) Start() {
