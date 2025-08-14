@@ -19,6 +19,7 @@ func handleBan(ctx domain.Context, msg *tb.Message, member *tb.ChatMember) {
 		if _, err := bot.Reply(msg, "Чота не могу забанить"); err != nil {
 			log.Error("can't even cry", utils.ErrorAttr(err))
 		}
+		return
 	}
 
 	if _, err := bot.Reply(msg, "Ban nyuuu"); err != nil {
@@ -36,6 +37,7 @@ func handleUnban(ctx domain.Context, msg *tb.Message, member *tb.ChatMember) {
 		if _, err := bot.Reply(msg, "Чота не могу разбанить"); err != nil {
 			log.Error("can't even cry", utils.ErrorAttr(err))
 		}
+		return
 	}
 
 	if _, err := bot.Reply(msg, "Разбан nyuuu"); err != nil {
@@ -44,7 +46,7 @@ func handleUnban(ctx domain.Context, msg *tb.Message, member *tb.ChatMember) {
 }
 
 func handlePollResults(ctx domain.Context, msg *tb.Message, member *tb.ChatMember) {
-	time.Sleep(time.Hour)
+	time.Sleep(time.Minute)
 
 	bot := ctx.Bot()
 	log := ctx.Log()
@@ -94,7 +96,7 @@ func HandleVoteban(ctx domain.Context) error {
 		return ctx.Reply("Админом меня сделай, олух")
 	}
 
-	msg, err := bot.Send(ctx.Chat(), &tb.Poll{
+	msg, err := bot.Reply(ctx.Message(), &tb.Poll{
 		Question:  "Забанить или разбанить?",
 		Anonymous: false,
 		Options: []tb.PollOption{
