@@ -46,7 +46,7 @@ func handleUnban(ctx domain.Context, msg *tb.Message, member *tb.ChatMember) {
 }
 
 func handlePollResults(ctx domain.Context, msg *tb.Message, member *tb.ChatMember) {
-	time.Sleep(time.Minute)
+	time.Sleep(time.Hour)
 
 	bot := ctx.Bot()
 	log := ctx.Log()
