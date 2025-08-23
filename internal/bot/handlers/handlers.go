@@ -73,7 +73,7 @@ func HandleVoteban(ctx domain.Context) error {
 	}
 
 	if ctx.Message().ReplyTo == nil {
-		return ctx.Reply("Ответь на сообщение кого забанить")
+		return ctx.Reply("Ответь на сообщение кого забанить или разбанить этой командой")
 	}
 
 	userToBan := ctx.Message().ReplyTo.Sender
@@ -97,7 +97,7 @@ func HandleVoteban(ctx domain.Context) error {
 	}
 
 	msg, err := bot.Reply(ctx.Message(), &tb.Poll{
-		Question:  "Забанить или разбанить?",
+		Question:  "Че делаем?",
 		Anonymous: false,
 		Options: []tb.PollOption{
 			{Text: "Бан"},
