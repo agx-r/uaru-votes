@@ -1,7 +1,12 @@
 package handlers
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"log/slog"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/uaru-shit/votes/internal/domain"
@@ -9,214 +14,214 @@ import (
 	tb "gopkg.in/telebot.v4"
 )
 
-func handleBan(ctx domain.Context, msg *tb.Message, member *tb.ChatMember) {
-	bot := ctx.Bot()
-	log := ctx.Log()
-
-	if err := bot.Ban(ctx.Chat(), member); err != nil {
-		log.Error("cannot ban user", utils.ErrorAttr(err))
-
-		if _, err := bot.Reply(msg, "Чота не могу забанить"); err != nil {
-			log.Error("can't even cry", utils.ErrorAttr(err))
-		}
-		return
-	}
-
-	if _, err := bot.Reply(msg, "Ban nyuuu"); err != nil {
-		log.Error("failed to reply to poll", utils.ErrorAttr(err))
-	}
+func generatePollID() string {
+	bytes := make([]byte, 8)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
 }
 
-func handleUnban(ctx domain.Context, msg *tb.Message, member *tb.ChatMember) {
-	bot := ctx.Bot()
-	log := ctx.Log()
-
-	if err := bot.Unban(ctx.Chat(), member.User, true); err != nil {
-		log.Error("cannot unban user", utils.ErrorAttr(err))
-
-		if _, err := bot.Reply(msg, "Чота не могу разбанить"); err != nil {
-			log.Error("can't even cry", utils.ErrorAttr(err))
-		}
-		return
+func createPoll(ctx domain.Context, pollType domain.PollType, user *tb.User, member *tb.ChatMember, question string, options []string) error {
+	bot := ctx.BotAPI()
+	pollID := generatePollID()
+	
+	// Convert string options to PollOption structs
+	pollOptions := make([]tb.PollOption, len(options))
+	for i, option := range options {
+		pollOptions[i] = tb.PollOption{Text: option}
 	}
-
-	if _, err := bot.Reply(msg, "Разбан nyuuu"); err != nil {
-		log.Error("failed to reply to poll", utils.ErrorAttr(err))
-	}
-}
-
-func handleBanPollResults(ctx domain.Context, msg *tb.Message, member *tb.ChatMember) {
-	time.Sleep(time.Hour)
-
-	bot := ctx.Bot()
-	log := ctx.Log()
-
-	poll, err := bot.StopPoll(msg)
-	if err != nil {
-		log.Error("failed to stop the poll", utils.ErrorAttr(err))
-
-		return
-	}
-
-	if poll.Options[0].VoterCount > poll.Options[1].VoterCount {
-		handleBan(ctx, msg, member)
-	} else {
-		handleUnban(ctx, msg, member)
-	}
-}
-
-func HandleVoteban(ctx domain.Context) error {
-	bot := ctx.Bot()
-
-	if !ctx.Message().FromGroup() {
-		return ctx.Reply("В лс не баню сори")
-	}
-
-	if ctx.Message().ReplyTo == nil {
-		return ctx.Reply("Ответь на сообщение кого забанить или разбанить этой командой")
-	}
-
-	userToBan := ctx.Message().ReplyTo.Sender
-
-	member, err := bot.ChatMemberOf(ctx.Chat(), userToBan)
-	if err != nil {
-		return fmt.Errorf("failed to get member: %w", err)
-	}
-
-	admins, err := bot.AdminsOf(ctx.Chat())
-	if err != nil {
-		return fmt.Errorf("failed to get admins: %w", err)
-	}
-
-	if utils.IsAdmin(userToBan.ID, admins) {
-		return ctx.Reply("ммм не")
-	}
-
-	if !utils.BotCanMute(ctx.BotUser().ID, admins) {
-		return ctx.Reply("Админом меня сделай, олух")
-	}
-
+	
 	msg, err := bot.Reply(ctx.Message(), &tb.Poll{
-		Question:  "Че делаем?",
+		Question:  question,
 		Anonymous: false,
-		Options: []tb.PollOption{
-			{Text: "Бан"},
-			{Text: "Разбан"},
-		},
+		Options:   pollOptions,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to send poll: %w", err)
 	}
 
-	go handleBanPollResults(ctx, msg, member)
+	memberData, err := utils.SerializeMember(member)
+	if err != nil {
+		return fmt.Errorf("failed to serialize member: %w", err)
+	}
 
+	pollDuration := getPollDuration(ctx)
+
+	const (
+		minDuration = 30 * time.Second
+		maxDuration = 24 * time.Hour
+	)
+
+	if pollDuration < minDuration {
+		ctx.Log().Warn("poll duration too short, using minimum", 
+			slog.String("provided", pollDuration.String()),
+			slog.String("minimum", minDuration.String()))
+		pollDuration = minDuration
+	} else if pollDuration > maxDuration {
+		ctx.Log().Warn("poll duration too long, using maximum", 
+			slog.String("provided", pollDuration.String()),
+			slog.String("maximum", maxDuration.String()))
+		pollDuration = maxDuration
+	}
+	activePoll := &domain.ActivePoll{
+		ID:         pollID,
+		Type:       pollType,
+		ChatID:     ctx.Chat().ID,
+		MessageID:  msg.ID,
+		UserID:     user.ID,
+		CreatedAt:  time.Now(),
+		ExpiresAt:  time.Now().Add(pollDuration),
+		MemberData: memberData,
+	}
+
+	if err := ctx.PollStorage().SavePoll(activePoll); err != nil {
+		return fmt.Errorf("failed to save poll: %w", err)
+	}
+
+	ctx.StartPollMonitoring(activePoll)
 	return nil
 }
 
-func handleMuteGifs(ctx domain.Context, msg *tb.Message, member *tb.ChatMember) {
-	bot := ctx.Bot()
-	log := ctx.Log()
+func getPollDuration(ctx domain.Context) time.Duration {
+	const defaultDuration = time.Hour
 
-	// This is for stickers/gifs/inline stuff
-	member.CanSendOther = false
-	if err := bot.Restrict(ctx.Chat(), member); err != nil {
-		log.Error("cannot restrict gifs for user", utils.ErrorAttr(err))
-
-		if _, err := bot.Reply(msg, "Чота не могу отключить стикеры"); err != nil {
-			log.Error("can't even cry", utils.ErrorAttr(err))
-		}
-		return
+	durationStr := os.Getenv("VOTEBAN_POLL_DURATION_SECONDS")
+	if durationStr == "" {
+		ctx.Log().Debug("using default poll duration", 
+			slog.String("duration", defaultDuration.String()))
+		return defaultDuration
 	}
 
-	if _, err := bot.Reply(msg, "-брейнрот"); err != nil {
-		log.Error("failed to reply to poll", utils.ErrorAttr(err))
+	duration, err := strconv.Atoi(durationStr)
+	if err != nil || duration <= 0 {
+		ctx.Log().Warn("invalid poll duration in environment", 
+			slog.String("value", durationStr),
+			slog.String("error", err.Error()))
+		return defaultDuration
 	}
+
+	pollDuration := time.Duration(duration) * time.Second
+	ctx.Log().Info("using custom poll duration", 
+		slog.Int("seconds", duration),
+		slog.String("duration", pollDuration.String()))
+	
+	return pollDuration
 }
 
-func handleUnmuteGifs(ctx domain.Context, msg *tb.Message, member *tb.ChatMember) {
-	bot := ctx.Bot()
-	log := ctx.Log()
 
-	// This is for stickers/gifs/inline stuff
-	member.CanSendOther = true
-	if err := bot.Restrict(ctx.Chat(), member); err != nil {
-		log.Error("cannot umute gifs for user", utils.ErrorAttr(err))
 
-		if _, err := bot.Reply(msg, "Чота не могу включить стикеры"); err != nil {
-			log.Error("can't even cry", utils.ErrorAttr(err))
-		}
-		return
-	}
-
-	if _, err := bot.Reply(msg, "Брейнрот снова доступен"); err != nil {
-		log.Error("failed to reply to poll", utils.ErrorAttr(err))
-	}
-}
-
-func handleGifsPollResults(ctx domain.Context, msg *tb.Message, member *tb.ChatMember) {
-	time.Sleep(time.Hour)
-
-	bot := ctx.Bot()
-	log := ctx.Log()
-
-	poll, err := bot.StopPoll(msg)
-	if err != nil {
-		log.Error("failed to stop the poll", utils.ErrorAttr(err))
-
-		return
-	}
-
-	if poll.Options[0].VoterCount > poll.Options[1].VoterCount {
-		handleMuteGifs(ctx, msg, member)
-	} else {
-		handleUnmuteGifs(ctx, msg, member)
-	}
-}
-
-func HandleVoteGifs(ctx domain.Context) error {
-	bot := ctx.Bot()
+func validatePollRequest(ctx domain.Context, user *tb.User) (*tb.ChatMember, error) {
+	bot := ctx.BotAPI()
 
 	if !ctx.Message().FromGroup() {
-		return ctx.Reply("В группу пиши ну")
+		return nil, fmt.Errorf("команда работает только в группах")
 	}
-
-	if ctx.Message().ReplyTo == nil {
-		return ctx.Reply("Ответь на сообщение кому стикеры запретить/разрешить")
-	}
-
-	user := ctx.Message().ReplyTo.Sender
 
 	member, err := bot.ChatMemberOf(ctx.Chat(), user)
 	if err != nil {
-		return fmt.Errorf("failed to get member: %w", err)
+		return nil, fmt.Errorf("failed to get member: %w", err)
 	}
 
 	admins, err := bot.AdminsOf(ctx.Chat())
 	if err != nil {
-		return fmt.Errorf("failed to get admins: %w", err)
+		return nil, fmt.Errorf("failed to get admins: %w", err)
 	}
 
 	if utils.IsAdmin(user.ID, admins) {
-		return ctx.Reply("ммм не")
+		return nil, fmt.Errorf("нельзя голосовать против администраторов")
 	}
 
 	if !utils.BotCanMute(ctx.BotUser().ID, admins) {
-		return ctx.Reply("Админом меня сделай, олух")
+		return nil, fmt.Errorf("бот должен быть администратором")
 	}
 
-	msg, err := bot.Reply(ctx.Message(), &tb.Poll{
-		Question:  "Стикеры/гифки этому челу:",
-		Anonymous: false,
-		Options: []tb.PollOption{
-			{Text: "Запретить"},
-			{Text: "Разрешить"},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to send poll: %w", err)
+	return member, nil
+}
+
+func validateAdminAccess(ctx domain.Context) error {
+	if os.Getenv("ADMINS_ONLY") == "true" {
+		bot := ctx.BotAPI()
+		admins, err := bot.AdminsOf(ctx.Chat())
+		if err != nil {
+			return fmt.Errorf("failed to get admins: %w", err)
+		}
+
+		if !utils.IsAdmin(ctx.Message().Sender.ID, admins) {
+			return fmt.Errorf("команда доступна только администраторам")
+		}
 	}
-
-	go handleGifsPollResults(ctx, msg, member)
-
 	return nil
 }
+
+func HandleVoteban(ctx domain.Context) error {
+	if err := validateAdminAccess(ctx); err != nil {
+		return ctx.Reply(err.Error())
+	}
+
+	if ctx.Message().ReplyTo == nil {
+		return ctx.Reply("ответь на сообщение пользователя")
+	}
+	userToBan := ctx.Message().ReplyTo.Sender
+
+	member, err := validatePollRequest(ctx, userToBan)
+	if err != nil {
+		return ctx.Reply(err.Error())
+	}
+
+	return createPoll(ctx, domain.PollTypeBan, userToBan, member, "Банить пользователя?", []string{"Да", "Нет"})
+}
+
+func HandleVoteUnban(ctx domain.Context) error {
+	if err := validateAdminAccess(ctx); err != nil {
+		return ctx.Reply(err.Error())
+	}
+
+	if ctx.Message().ReplyTo == nil {
+		return ctx.Reply("ответь на сообщение пользователя")
+	}
+	userToUnban := ctx.Message().ReplyTo.Sender
+
+	member, err := validatePollRequest(ctx, userToUnban)
+	if err != nil {
+		return ctx.Reply(err.Error())
+	}
+
+	return createPoll(ctx, domain.PollTypeUnban, userToUnban, member, "Разбанить пользователя?", []string{"Да", "Нет"})
+}
+
+func HandleVoteGifs(ctx domain.Context) error {
+	if err := validateAdminAccess(ctx); err != nil {
+		return ctx.Reply(err.Error())
+	}
+
+	if ctx.Message().ReplyTo == nil {
+		return ctx.Reply("ответь на сообщение пользователя")
+	}
+	user := ctx.Message().ReplyTo.Sender
+
+	member, err := validatePollRequest(ctx, user)
+	if err != nil {
+		return ctx.Reply(err.Error())
+	}
+
+	return createPoll(ctx, domain.PollTypeGifs, user, member, "Стикеры/гифки этому челу:", []string{"Запретить", "Разрешить"})
+}
+
+func HandleVoteMedia(ctx domain.Context) error {
+	if err := validateAdminAccess(ctx); err != nil {
+		return ctx.Reply(err.Error())
+	}
+
+	if ctx.Message().ReplyTo == nil {
+		return ctx.Reply("ответь на сообщение пользователя")
+	}
+	user := ctx.Message().ReplyTo.Sender
+
+	member, err := validatePollRequest(ctx, user)
+	if err != nil {
+		return ctx.Reply(err.Error())
+	}
+
+	return createPoll(ctx, domain.PollTypeMedia, user, member, "Медиа этому челу:", []string{"Запретить", "Разрешить"})
+}
+
+

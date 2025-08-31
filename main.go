@@ -54,7 +54,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	b := bot.New(log, tbBot)
+	// create poll storage
+	pollStorage, err := utils.NewFilePollStorage("data/active_polls.json")
+	if err != nil {
+		log.Error("failed to create poll storage:", utils.ErrorAttr(err))
+		os.Exit(1)
+	}
+
+	b := bot.New(log, tbBot, pollStorage)
 
 	b.Start()
 }
