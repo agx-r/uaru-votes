@@ -25,6 +25,9 @@ func New(logger *slog.Logger, bot *tb.Bot) *Bot {
 	b.handle("/vote", handlers.HandleVoteban)
 	b.handle("/ban", handlers.HandleVoteban)
 
+	b.handle("/votegif", handlers.HandleVoteGifs)
+	b.handle("/gif", handlers.HandleVoteGifs)
+
 	b.bot.Handle(tb.OnText, b.handleAllMessages)
 	b.bot.Handle(tb.OnPhoto, b.handleAllMessages)
 	b.bot.Handle(tb.OnVideo, b.handleAllMessages)
