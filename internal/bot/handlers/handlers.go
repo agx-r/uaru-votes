@@ -117,6 +117,7 @@ func handleMuteGifs(ctx domain.Context, msg *tb.Message, member *tb.ChatMember) 
 	bot := ctx.Bot()
 	log := ctx.Log()
 
+	// This is for stickers/gifs/inline stuff
 	member.CanSendOther = false
 	if err := bot.Restrict(ctx.Chat(), member); err != nil {
 		log.Error("cannot restrict gifs for user", utils.ErrorAttr(err))
@@ -136,6 +137,7 @@ func handleUnmuteGifs(ctx domain.Context, msg *tb.Message, member *tb.ChatMember
 	bot := ctx.Bot()
 	log := ctx.Log()
 
+	// This is for stickers/gifs/inline stuff
 	member.CanSendOther = true
 	if err := bot.Restrict(ctx.Chat(), member); err != nil {
 		log.Error("cannot umute gifs for user", utils.ErrorAttr(err))
