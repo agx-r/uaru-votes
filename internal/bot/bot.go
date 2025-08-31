@@ -51,6 +51,8 @@ func (b *Bot) setupHandlers() {
 	b.handle("/votemedia", handlers.HandleVoteMedia)
 	b.handle("/media", handlers.HandleVoteMedia)
 
+	b.handle("/help", handlers.HandleHelp)
+
 	b.bot.Handle(tb.OnText, b.handleAllMessages)
 	b.bot.Handle(tb.OnPhoto, b.handleAllMessages)
 	b.bot.Handle(tb.OnVideo, b.handleAllMessages)

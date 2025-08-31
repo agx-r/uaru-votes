@@ -224,4 +224,17 @@ func HandleVoteMedia(ctx domain.Context) error {
 	return createPoll(ctx, domain.PollTypeMedia, user, member, "Медиа этому челу:", []string{"Запретить", "Разрешить"})
 }
 
+func HandleHelp(ctx domain.Context) error {
+	helpText := `Available commands:
+
+/ban, - Start vote to ban user
+/unban - Start vote to unban user  
+/gif - Start vote to restrict gifs/stickers
+/media - Start vote to restrict media
+
+Reply to any message with a command to start voting.`
+
+	return ctx.Reply(helpText)
+}
+
 
