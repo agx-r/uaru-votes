@@ -225,14 +225,17 @@ func HandleVoteMedia(ctx domain.Context) error {
 }
 
 func HandleHelp(ctx domain.Context) error {
-	helpText := `Available commands:
+	helpText := `*commands*
 
-/ban, - Start vote to ban user
-/unban - Start vote to unban user  
-/gif - Start vote to restrict gifs/stickers
-/media - Start vote to restrict media
+*Ban/Unban Commands:*
+/voteban, /vote, /ban - Start vote to ban user
+/voteunban, /unban - Start vote to unban user
 
-Reply to any message with a command to start voting.`
+*Permission Commands:*
+/votegif, /gif - Start vote to restrict gifs/stickers
+/votemedia, /media - Start vote to restrict media
+
+*Usage:* Reply to any message with a command to start voting.`
 
 	return ctx.Reply(helpText)
 }
