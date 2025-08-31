@@ -33,11 +33,3 @@ It also reads .env file in current directory, if present
 - `/votegif`, `/gif` - Start vote to restrict gifs/stickers (Restrict/Allow)
 - `/votemedia`, `/media` - Start vote to restrict media (Restrict/Allow)
 
-## Usage
-Reply to message in group with any command to start vote (that will last 1 hour) on whether to take action against the author of the original message.
-Don't forget to give the bot proper rights in the group (it will remind anyway)
-
-## Security Features
-- **Admins Only Mode**: Set `ADMINS_ONLY=true` to restrict command usage to group administrators only (for testing builds)
-- **User Validation**: Bot prevents voting against administrators
-- **Permission Checks**: Bot ensures it has necessary permissions before taking actions
