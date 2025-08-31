@@ -23,7 +23,7 @@ func (s *PermissionService) UpdatePermission(msg *tb.Message, member *tb.ChatMem
 	currentMember, err := s.bot.ChatMemberOf(msg.Chat, member.User)
 	if err != nil {
 		s.logger.Error("cannot get current member data", slog.String("error", err.Error()))
-		_, replyErr := s.bot.Reply(msg, "Чота не могу получить данные пользователя")
+		_, replyErr := s.bot.Reply(msg, "Чота не могу получить данные юзера")
 		if replyErr != nil {
 			s.logger.Error("failed to send error message", slog.String("error", replyErr.Error()))
 		}

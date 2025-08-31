@@ -88,7 +88,7 @@ func (s *PollProcessorService) handleBan(msg *tb.Message, member *tb.ChatMember)
 		return err
 	}
 
-	_, err := s.bot.Reply(msg, "BAN B AN BAN BAN BANBANBANBAN BAN BANBANBA NB ANBANB ANBANB ANBANB ANBAN BAN BANBA NBNBANBANB AN BA NBA NBANBA NB ANB ANB AN BANB AN\n!!!!!!!!")
+	_, err := s.bot.Reply(msg, "BAN B AN BAN BAN BANBANBANBAN BAN BANBANBA NB ANBANB ANBANB ANBANB ANBAN BAN BANBA NBNBANBANB AN BA NBA NBANBA NB ANB ANB AN BANB AN\n!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!\n!!!!!!!!\n!!!!!!!!!!!!")
 	if err != nil {
 		s.logger.Error("failed to reply to poll", slog.String("error", err.Error()))
 	}
@@ -105,7 +105,7 @@ func (s *PollProcessorService) handleUnban(msg *tb.Message, member *tb.ChatMembe
 		return err
 	}
 
-	_, err := s.bot.Reply(msg, "Разбан")
+	_, err := s.bot.Reply(msg, "Разбанен")
 	if err != nil {
 		s.logger.Error("failed to reply to poll", slog.String("error", err.Error()))
 	}

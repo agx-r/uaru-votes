@@ -158,7 +158,7 @@ func HandleVoteban(ctx domain.Context) error {
 	}
 
 	if ctx.Message().ReplyTo == nil {
-		return ctx.Reply("ответь на сообщение пользователя")
+		return ctx.Reply("ответь на сообщение")
 	}
 	userToBan := ctx.Message().ReplyTo.Sender
 
@@ -167,7 +167,7 @@ func HandleVoteban(ctx domain.Context) error {
 		return ctx.Reply(err.Error())
 	}
 
-	return createPoll(ctx, domain.PollTypeBan, userToBan, member, "Банить пользователя?", []string{"Да", "Нет"})
+	return createPoll(ctx, domain.PollTypeBan, userToBan, member, "Банить?", []string{"Да", "Нет"})
 }
 
 func HandleVoteUnban(ctx domain.Context) error {
@@ -176,7 +176,7 @@ func HandleVoteUnban(ctx domain.Context) error {
 	}
 
 	if ctx.Message().ReplyTo == nil {
-		return ctx.Reply("ответь на сообщение пользователя")
+		return ctx.Reply("ответь на сообщение")
 	}
 	userToUnban := ctx.Message().ReplyTo.Sender
 
@@ -185,7 +185,7 @@ func HandleVoteUnban(ctx domain.Context) error {
 		return ctx.Reply(err.Error())
 	}
 
-	return createPoll(ctx, domain.PollTypeUnban, userToUnban, member, "Разбанить пользователя?", []string{"Да", "Нет"})
+	return createPoll(ctx, domain.PollTypeUnban, userToUnban, member, "Разбанить?", []string{"Да", "Нет"})
 }
 
 func HandleVoteGifs(ctx domain.Context) error {
@@ -194,7 +194,7 @@ func HandleVoteGifs(ctx domain.Context) error {
 	}
 
 	if ctx.Message().ReplyTo == nil {
-		return ctx.Reply("ответь на сообщение пользователя")
+		return ctx.Reply("ответь на сообщение")
 	}
 	user := ctx.Message().ReplyTo.Sender
 
@@ -212,7 +212,7 @@ func HandleVoteMedia(ctx domain.Context) error {
 	}
 
 	if ctx.Message().ReplyTo == nil {
-		return ctx.Reply("ответь на сообщение пользователя")
+		return ctx.Reply("ответь на сообщение")
 	}
 	user := ctx.Message().ReplyTo.Sender
 
