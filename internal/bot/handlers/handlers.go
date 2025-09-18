@@ -239,7 +239,7 @@ func HandleInstaban(ctx domain.Context) error {
 	}
 
 	bot := ctx.BotAPI()
-	member, err := bot.ChatMemberOf(ctx.Chat(), userToBan)
+	_, err := bot.ChatMemberOf(ctx.Chat(), userToBan)
 	if err != nil {
 		return ctx.Reply("не могу получить данные пользователя")
 	}
