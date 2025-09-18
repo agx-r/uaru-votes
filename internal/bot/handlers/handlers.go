@@ -146,7 +146,7 @@ func validateAdminAccess(ctx domain.Context) error {
 		}
 
 		if !utils.IsAdmin(ctx.Message().Sender.ID, admins) {
-			return fmt.Errorf("команда доступна только администраторам")
+			return fmt.Errorf("не получается")
 		}
 	}
 	return nil
@@ -225,10 +225,6 @@ func HandleVoteMedia(ctx domain.Context) error {
 }
 
 func HandleInstaban(ctx domain.Context) error {
-	if err := validateAdminAccess(ctx); err != nil {
-		return ctx.Reply(err.Error())
-	}
-
 	if ctx.Message().ReplyTo == nil {
 		return ctx.Reply("ответь на сообщение")
 	}
@@ -241,20 +237,20 @@ func HandleInstaban(ctx domain.Context) error {
 	bot := ctx.BotAPI()
 	member, err := bot.ChatMemberOf(ctx.Chat(), userToBan)
 	if err != nil {
-		return ctx.Reply("не могу получить данные пользователя")
+		return ctx.Reply("не могу получить данные юзера")
 	}
 
 	admins, err := bot.AdminsOf(ctx.Chat())
 	if err != nil {
-		return ctx.Reply("не могу получить список администраторов")
+		return ctx.Reply("не могу получить список админов")
 	}
 
-	if utils.IsAdmin(userToBan.ID, admins) {
-		return ctx.Reply("нельзя банить администраторов")
+	if !utils.IsAdmin(ctx.Message().Sender.ID, admins) {
+		return ctx.Reply("команда доступна только админам")
 	}
 
 	if !utils.BotCanMute(ctx.BotUser().ID, admins) {
-		return ctx.Reply("бот должен быть администратором")
+		return ctx.Reply("бот должен быть админом")
 	}
 
 	if err := bot.Ban(ctx.Chat(), member); err != nil {
