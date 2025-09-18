@@ -82,7 +82,7 @@ func createPoll(ctx domain.Context, pollType domain.PollType, user *tb.User, mem
 }
 
 func getPollDuration(ctx domain.Context) time.Duration {
-	const defaultDuration = time.Hour
+	const defaultDuration = 30 * time.Minute
 
 	durationStr := os.Getenv("VOTEBAN_POLL_DURATION_SECONDS")
 	if durationStr == "" {
@@ -224,12 +224,62 @@ func HandleVoteMedia(ctx domain.Context) error {
 	return createPoll(ctx, domain.PollTypeMedia, user, member, "Медиа этому челу:", []string{"Запретить", "Разрешить"})
 }
 
+func HandleInstaban(ctx domain.Context) error {
+	if err := validateAdminAccess(ctx); err != nil {
+		return ctx.Reply(err.Error())
+	}
+
+	if ctx.Message().ReplyTo == nil {
+		return ctx.Reply("ответь на сообщение")
+	}
+	userToBan := ctx.Message().ReplyTo.Sender
+
+	if !ctx.Message().FromGroup() {
+		return ctx.Reply("команда работает только в группах")
+	}
+
+	bot := ctx.BotAPI()
+	member, err := bot.ChatMemberOf(ctx.Chat(), userToBan)
+	if err != nil {
+		return ctx.Reply("не могу получить данные пользователя")
+	}
+
+	admins, err := bot.AdminsOf(ctx.Chat())
+	if err != nil {
+		return ctx.Reply("не могу получить список администраторов")
+	}
+
+	if utils.IsAdmin(userToBan.ID, admins) {
+		return ctx.Reply("нельзя банить администраторов")
+	}
+
+	if !utils.BotCanMute(ctx.BotUser().ID, admins) {
+		return ctx.Reply("бот должен быть администратором")
+	}
+
+	// Мгновенный бан без опроса
+	if err := bot.Ban(ctx.Chat(), &tb.ChatMember{User: userToBan}); err != nil {
+		ctx.Log().Error("failed to ban user", 
+			slog.Int64("user_id", userToBan.ID),
+			slog.String("error", err.Error()))
+		return ctx.Reply("не удалось забанить пользователя")
+	}
+
+	ctx.Log().Info("user banned instantly", 
+		slog.Int64("user_id", userToBan.ID),
+		slog.String("username", userToBan.Username),
+		slog.Int64("admin_id", ctx.Message().Sender.ID))
+
+	return ctx.Reply(fmt.Sprintf("Пользователь @%s забанен мгновенно", userToBan.Username))
+}
+
 func HandleHelp(ctx domain.Context) error {
 	helpText := `<b>COMMANDS</b>
 
 <b>Ban/Unban:</b>
 /ban - Start vote to ban user
 /unban - Start vote to unban user
+/instaban - Instantly ban user (admin only)
 
 <b>Permissions:</b>
 /gif - Start vote to restrict gifs/stickers

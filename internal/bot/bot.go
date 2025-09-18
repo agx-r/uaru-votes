@@ -45,6 +45,8 @@ func (b *Bot) setupHandlers() {
 	b.handle("/voteunban", handlers.HandleVoteUnban)
 	b.handle("/unban", handlers.HandleVoteUnban)
 
+	b.handle("/instaban", handlers.HandleInstaban)
+
 	b.handle("/votegif", handlers.HandleVoteGifs)
 	b.handle("/gif", handlers.HandleVoteGifs)
 
