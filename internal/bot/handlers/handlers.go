@@ -145,7 +145,7 @@ func validateAdminAccess(ctx domain.Context) error {
 	}
 
 	if !utils.IsAdmin(ctx.Message().Sender.ID, admins) {
-		return fmt.Errorf("команда доступна только админам")
+		return fmt.Errorf(" не могу")
 	}
 	return nil
 }
