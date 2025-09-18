@@ -138,16 +138,14 @@ func validatePollRequest(ctx domain.Context, user *tb.User) (*tb.ChatMember, err
 }
 
 func validateAdminAccess(ctx domain.Context) error {
-	if os.Getenv("ADMINS_ONLY") == "true" {
-		bot := ctx.BotAPI()
-		admins, err := bot.AdminsOf(ctx.Chat())
-		if err != nil {
-			return fmt.Errorf("failed to get admins: %w", err)
-		}
+	bot := ctx.BotAPI()
+	admins, err := bot.AdminsOf(ctx.Chat())
+	if err != nil {
+		return fmt.Errorf("failed to get admins: %w", err)
+	}
 
-		if !utils.IsAdmin(ctx.Message().Sender.ID, admins) {
-			return fmt.Errorf("не получается")
-		}
+	if !utils.IsAdmin(ctx.Message().Sender.ID, admins) {
+		return fmt.Errorf("команда доступна только админам")
 	}
 	return nil
 }
@@ -225,6 +223,10 @@ func HandleVoteMedia(ctx domain.Context) error {
 }
 
 func HandleInstaban(ctx domain.Context) error {
+	if err := validateAdminAccess(ctx); err != nil {
+		return ctx.Reply(err.Error())
+	}
+
 	if ctx.Message().ReplyTo == nil {
 		return ctx.Reply("ответь на сообщение")
 	}
@@ -243,10 +245,6 @@ func HandleInstaban(ctx domain.Context) error {
 	admins, err := bot.AdminsOf(ctx.Chat())
 	if err != nil {
 		return ctx.Reply("не могу получить список админов")
-	}
-
-	if !utils.IsAdmin(ctx.Message().Sender.ID, admins) {
-		return ctx.Reply("команда доступна только админам")
 	}
 
 	if !utils.BotCanMute(ctx.BotUser().ID, admins) {
