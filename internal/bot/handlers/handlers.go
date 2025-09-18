@@ -239,7 +239,7 @@ func HandleInstaban(ctx domain.Context) error {
 	}
 
 	bot := ctx.BotAPI()
-	_, err := bot.ChatMemberOf(ctx.Chat(), userToBan)
+	member, err := bot.ChatMemberOf(ctx.Chat(), userToBan)
 	if err != nil {
 		return ctx.Reply("не могу получить данные пользователя")
 	}
@@ -257,12 +257,15 @@ func HandleInstaban(ctx domain.Context) error {
 		return ctx.Reply("бот должен быть администратором")
 	}
 
-	// Мгновенный бан без опроса
-	if err := bot.Ban(ctx.Chat(), &tb.ChatMember{User: userToBan}); err != nil {
+	if err := bot.Ban(ctx.Chat(), member); err != nil {
 		ctx.Log().Error("failed to ban user", 
 			slog.Int64("user_id", userToBan.ID),
 			slog.String("error", err.Error()))
-		return ctx.Reply("не удалось забанить пользователя")
+		_, replyErr := bot.Send(ctx.Chat(), "не забанился")
+		if replyErr != nil {
+			ctx.Log().Error("failed to send error", slog.String("error", replyErr.Error()))
+		}
+		return err
 	}
 
 	ctx.Log().Info("user banned instantly", 
@@ -270,7 +273,11 @@ func HandleInstaban(ctx domain.Context) error {
 		slog.String("username", userToBan.Username),
 		slog.Int64("admin_id", ctx.Message().Sender.ID))
 
-	return ctx.Reply(fmt.Sprintf("Пользователь @%s забанен мгновенно", userToBan.Username))
+	_, err = bot.Send(ctx.Chat(), fmt.Sprintf("@%s BANNNED BY 1984 FORCES", userToBan.Username))
+	if err != nil {
+		ctx.Log().Error("failed to send success msg", slog.String("error", err.Error()))
+	}
+	return err
 }
 
 func HandleHelp(ctx domain.Context) error {
@@ -279,7 +286,6 @@ func HandleHelp(ctx domain.Context) error {
 <b>Ban/Unban:</b>
 /ban - Start vote to ban user
 /unban - Start vote to unban user
-/instaban - Instantly ban user (admin only)
 
 <b>Permissions:</b>
 /gif - Start vote to restrict gifs/stickers
